@@ -58,6 +58,7 @@ ipython_config.py
 venv/
 ENV/
 env/
+.env
 env.bak/
 venv.bak/
 
@@ -70,3 +71,4 @@ venv.bak/
 
 .idea
 photos
+.DS_Store

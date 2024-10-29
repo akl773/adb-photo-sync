@@ -2,15 +2,38 @@ import os
 import subprocess
 import shutil
 from typing import Optional
-
 from tqdm import tqdm
 import time
+from PIL import Image
+import pyheif
 
 LAST_SYNC_FILE = "last_sync_time.txt"
 
 
-def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[float] = None) -> tuple[
-    int, int, list[str]]:
+def confirm_heic_conversion() -> bool:
+    """Ask user for confirmation to convert HEIC to JPG with default as convert."""
+    convert_confirm = input("Convert HEIC files to JPG before transfer? (Y/n): ").strip().lower()
+    return convert_confirm != 'n'  # Default to convert if user just presses Enter or inputs 'y'
+
+
+def convert_heic_to_jpg(file_path: str) -> str:
+    """Convert a HEIC image to JPG and return the new file path."""
+    heif_file = pyheif.read(file_path)
+    image = Image.frombytes(
+        heif_file.mode,
+        heif_file.size,
+        heif_file.data,
+        "raw",
+        heif_file.mode,
+        heif_file.stride
+    )
+    jpg_path = file_path.replace(".heic", ".jpg")
+    image.save(jpg_path, "JPEG")
+    return jpg_path
+
+
+def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[float] = None,
+                       convert_heic: bool = True) -> tuple[int, int, list[str]]:
     total_size = 0
     file_count = 0
     files_for_sync = []
@@ -18,6 +41,12 @@ def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[fl
     for root, _, files in os.walk(sync_source_folder):
         for file in files:
             file_path = os.path.join(root, file)
+
+            # Convert HEIC to JPG if the user confirmed
+            if convert_heic and file.lower().endswith(".heic"):
+                print(f"Converting {file} to JPG...")
+                file_path = convert_heic_to_jpg(file_path)
+
             # Check if the file was modified after the last sync time
             if last_sync_timestamp is None or os.path.getmtime(file_path) > last_sync_timestamp:
                 total_size += os.path.getsize(file_path)
@@ -103,10 +132,15 @@ if __name__ == "__main__":
     source_folder = os.path.expanduser("~/photos")  # source folder
     target_folder = "/storage/self/primary/Download"  # target folder
 
+    # Get HEIC conversion preference
+    convert_heic = confirm_heic_conversion()
+
     # Calculate metadata and list of files to sync
     num_files, total_size_bytes, files_to_sync = calculate_metadata(
         sync_source_folder=source_folder,
-        last_sync_timestamp=None if get_sync_mode() == '1' else get_last_sync_timestamp())
+        last_sync_timestamp=None if get_sync_mode() == '1' else get_last_sync_timestamp(),
+        convert_heic=convert_heic
+    )
 
     print(f"Total photos/files to transfer: {num_files}")
     print(f"Total size: {total_size_bytes / (1024 * 1024):.2f} MB\n")

@@ -20,12 +20,6 @@ def delete_files_in_folder(folder_path: str) -> None:
             print(f"Deleted file: {file_path}")
 
 
-def confirm_heic_conversion() -> bool:
-    """Ask user for confirmation to convert HEIC to JPG with default as convert."""
-    convert_confirm = input("Convert HEIC files to JPG before transfer? (Y/n): ").strip().lower()
-    return convert_confirm != 'n'  # Default to convert if user just presses Enter or inputs 'y'
-
-
 def convert_heic_to_jpg(file_path: str) -> str:
     """Convert a HEIC image to JPG. Attempt pyheif first, fallback to imageio, or skip if both fail."""
     try:
@@ -148,15 +142,26 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
         print("Some files failed to push. Please check and try again.")
 
 
-def get_sync_mode():
+def get_user_confirmation(prompt: str, default: str, valid_options: dict) -> bool | int | str | float | None:
+    """
+    Generalized user prompt function.
+
+    Args:
+        prompt (str): The prompt message to display to the user.
+        default (str): The default response if the user presses Enter.
+        valid_options (dict): A dictionary where keys are valid responses and values are the return values.
+
+    Returns:
+        str: The value associated with the user’s response in `valid_options`.
+    """
     while True:
-        sync_mode = input("Choose sync mode: (1) Sync All or (2) Sync Only New Files [default: 1]: ").strip()
-        if sync_mode == '':
-            return '1'  # Default to '1' if the user presses Enter
-        elif sync_mode in ['1', '2']:
-            return sync_mode
+        user_input = input(f"{prompt} [{'/'.join(valid_options.keys())}, default: {default}]: ").strip().lower()
+        if user_input == '':
+            return valid_options[default]
+        elif user_input in valid_options:
+            return valid_options[user_input]
         else:
-            print("Invalid choice. Please enter '1' or '2'.")
+            print(f"Invalid choice. Please enter one of {', '.join(valid_options.keys())}.")
 
 
 def main():
@@ -164,8 +169,14 @@ def main():
     source_folder = os.path.join(repo_dir, "photos")
     target_folder = "/storage/self/primary/syncPhotos"
 
-    convert_heic = confirm_heic_conversion()
-    sync_mode = get_sync_mode()
+    convert_heic = get_user_confirmation(
+        prompt="Convert HEIC to JPG?",
+        default='y', valid_options={'y': True, 'n': False}
+    )
+    sync_mode = get_user_confirmation(
+        "Choose sync mode: (1) Sync All or (2) Sync Only New Files",
+        default='1', valid_options={'1': '1', '2': '2'}
+    )
     last_sync_timestamp = None if sync_mode == '1' else get_last_sync_timestamp()
 
     num_files, total_size_bytes, files_to_sync = calculate_metadata(
@@ -181,11 +192,15 @@ def main():
     print(f"Total photos/files to transfer: {num_files}")
     print(f"Total size: {total_size_bytes / (1024 * 1024):.2f} MB\n")
 
-    start_confirm = input("Start the transfer? (y/N): ").strip().lower()
-    if start_confirm != 'y':
-        print("Transfer cancelled.")
-    else:
+    start_confirm = get_user_confirmation(
+        prompt="Start the transfer?", default='y',
+        valid_options={'y': True, 'n': False}
+    )
+    if start_confirm:
         adb_push_files(source_folder, target_folder, files_to_sync)
+    else:
+        print("Transfer cancelled.")
+        return
 
 
 if __name__ == "__main__":

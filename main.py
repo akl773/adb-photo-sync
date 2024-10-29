@@ -1,14 +1,15 @@
 import os
 import subprocess
-import shutil
-from typing import Optional
-from tqdm import tqdm
 import time
-from PIL import Image
-import imageio
+from typing import Optional
+
+import imageio.v2 as imageio
 import pyheif
+from PIL import Image
+from tqdm import tqdm
 
 LAST_SYNC_FILE = "last_sync_time.txt"
+
 
 def delete_files_in_folder(folder_path: str) -> None:
     """Delete all files in the specified folder, keeping the folder structure intact."""
@@ -17,6 +18,7 @@ def delete_files_in_folder(folder_path: str) -> None:
             file_path = os.path.join(root, file)
             os.remove(file_path)
             print(f"Deleted file: {file_path}")
+
 
 def confirm_heic_conversion() -> bool:
     """Ask user for confirmation to convert HEIC to JPG with default as convert."""
@@ -65,14 +67,22 @@ def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[fl
             # Convert HEIC to JPG if the user confirmed
             if convert_heic and file.lower().endswith(".heic"):
                 print(f"Converting {file} to JPG...")
-                file_path = convert_heic_to_jpg(file_path)
+                file_path = convert_heic_to_jpg(file_path)  # Ensure converted file path is used
 
             # Check if the file was modified after the last sync time
             if last_sync_timestamp is None or os.path.getmtime(file_path) > last_sync_timestamp:
-                total_size += os.path.getsize(file_path)
-                file_count += 1
-                files_for_sync.append(file_path)
+                file_size = os.path.getsize(file_path)  # Get the file size
 
+                # Only add if the file size is greater than zero
+                if file_size > 0:
+                    total_size += file_size
+                    file_count += 1
+                    files_for_sync.append(file_path)
+                    print(f"Adding file: {file_path}, Size: {file_size} bytes")
+                else:
+                    print(f"Skipping zero-byte file: {file_path}")
+
+    print(f"Total files for sync: {file_count}, Total size: {total_size} bytes")
     return file_count, total_size, files_for_sync
 
 

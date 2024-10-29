@@ -150,11 +150,13 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
 
 def get_sync_mode():
     while True:
-        sync_mode = input("Choose sync mode: (1) Sync All or (2) Sync Only New Files: ").strip()
-        if sync_mode not in ['1', '2']:
-            print("Invalid choice. Please enter '1' or '2'.")
-        else:
+        sync_mode = input("Choose sync mode: (1) Sync All or (2) Sync Only New Files [default: 1]: ").strip()
+        if sync_mode == '':
+            return '1'  # Default to '1' if the user presses Enter
+        elif sync_mode in ['1', '2']:
             return sync_mode
+        else:
+            print("Invalid choice. Please enter '1' or '2'.")
 
 
 if __name__ == "__main__":

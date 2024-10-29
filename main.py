@@ -129,8 +129,9 @@ def get_sync_mode():
 
 if __name__ == "__main__":
     # Define source and target folders
-    source_folder = os.path.expanduser("~/photos")  # source folder
-    target_folder = "/storage/self/primary/Download"  # target folder
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    source_folder = os.path.join(repo_dir, "photos") # source folder
+    target_folder = "/storage/self/primary/syncPhotos"  # target folder
 
     # Get HEIC conversion preference
     convert_heic = confirm_heic_conversion()

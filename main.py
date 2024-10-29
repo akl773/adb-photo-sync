@@ -67,11 +67,11 @@ def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[fl
             # Convert HEIC to JPG if the user confirmed
             if convert_heic and file.lower().endswith(".heic"):
                 print(f"Converting {file} to JPG...")
-                file_path = convert_heic_to_jpg(file_path)  # Ensure converted file path is used
+                file_path = convert_heic_to_jpg(file_path)
 
             # Check if the file was modified after the last sync time
             if last_sync_timestamp is None or os.path.getmtime(file_path) > last_sync_timestamp:
-                file_size = os.path.getsize(file_path)  # Get the file size
+                file_size = os.path.getsize(file_path)
 
                 # Only add if the file size is greater than zero
                 if file_size > 0:
@@ -140,7 +140,7 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
         delete_confirm = input(
             "Files will be deleted from your Mac unless you type 'n'. Proceed? (default: yes): ").strip().lower()
         if delete_confirm != 'n':
-            delete_files_in_folder(source_folder)
+            delete_files_in_folder(source_dir)
             print(f"Deleted all files from {source_dir}.")
         else:
             print("Files were not deleted.")
@@ -159,32 +159,34 @@ def get_sync_mode():
             print("Invalid choice. Please enter '1' or '2'.")
 
 
-if __name__ == "__main__":
-    # Define source and target folders
+def main():
     repo_dir = os.path.dirname(os.path.abspath(__file__))
-    source_folder = os.path.join(repo_dir, "photos")  # source folder
-    target_folder = "/storage/self/primary/syncPhotos"  # target folder
+    source_folder = os.path.join(repo_dir, "photos")
+    target_folder = "/storage/self/primary/syncPhotos"
 
-    # Get HEIC conversion preference
     convert_heic = confirm_heic_conversion()
+    sync_mode = get_sync_mode()
+    last_sync_timestamp = None if sync_mode == '1' else get_last_sync_timestamp()
 
-    # Calculate metadata and list of files to sync
     num_files, total_size_bytes, files_to_sync = calculate_metadata(
         sync_source_folder=source_folder,
-        last_sync_timestamp=None if get_sync_mode() == '1' else get_last_sync_timestamp(),
+        last_sync_timestamp=last_sync_timestamp,
         convert_heic=convert_heic
     )
 
     if num_files == 0:
         print("No new files to sync.")
-        exit(1)
+        return
 
     print(f"Total photos/files to transfer: {num_files}")
     print(f"Total size: {total_size_bytes / (1024 * 1024):.2f} MB\n")
 
-    # Confirm before starting the transfer
     start_confirm = input("Start the transfer? (y/N): ").strip().lower()
     if start_confirm != 'y':
         print("Transfer cancelled.")
     else:
         adb_push_files(source_folder, target_folder, files_to_sync)
+
+
+if __name__ == "__main__":
+    main()

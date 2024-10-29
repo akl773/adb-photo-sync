@@ -20,8 +20,8 @@ def delete_files_in_folder(folder_path: str) -> None:
             print(f"Deleted file: {file_path}")
 
 
-def convert_heic_to_jpg(file_path: str) -> str:
-    """Convert a HEIC image to JPG. Attempt pyheif first, fallback to imageio, or skip if both fail."""
+def convert_heic_to_jpg(file_path: str) -> Optional[str]:
+    """Convert a HEIC image to JPG, delete the original HEIC file, and return the new JPG path."""
     try:
         # Attempt conversion with pyheif
         heif_file = pyheif.read(file_path)
@@ -36,16 +36,24 @@ def convert_heic_to_jpg(file_path: str) -> str:
     except Exception:
         print(f"pyheif failed to read {file_path}, trying imageio as a fallback.")
         try:
-            # Attempt conversion with imageio
             image = Image.fromarray(imageio.imread(file_path))
         except Exception:
             print(f"imageio also failed to read {file_path}. Skipping conversion.")
-            return file_path  # Return original HEIC path if both methods fail
+            return None  # Return None if both methods fail
 
-    # Save the converted image as JPG
-    jpg_path = file_path.replace(".heic", ".jpg")
+    # Replace .heic with .jpg in the file path
+    jpg_path = file_path.rsplit('.', 1)[0] + ".jpg"
     image.save(jpg_path, "JPEG")
-    return jpg_path
+    print(f"Converted {file_path} to {jpg_path}")
+
+    # Delete the original HEIC file
+    try:
+        os.remove(file_path)
+        print(f"Deleted original HEIC file: {file_path}")
+    except OSError as e:
+        print(f"Could not delete original HEIC file: {file_path}. Error: {e}")
+
+    return jpg_path  # Return the path to the new JPG file
 
 
 def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[float] = None,
@@ -61,17 +69,17 @@ def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[fl
             # Convert HEIC to JPG if the user confirmed
             if convert_heic and file.lower().endswith(".heic"):
                 print(f"Converting {file} to JPG...")
-                file_path = convert_heic_to_jpg(file_path)
+                file_path = convert_heic_to_jpg(file_path)  # Replace file_path with the path of the converted file
 
             # Check if the file was modified after the last sync time
             if last_sync_timestamp is None or os.path.getmtime(file_path) > last_sync_timestamp:
-                file_size = os.path.getsize(file_path)
+                file_size = os.path.getsize(file_path)  # Get the file size
 
                 # Only add if the file size is greater than zero
                 if file_size > 0:
                     total_size += file_size
                     file_count += 1
-                    files_for_sync.append(file_path)
+                    files_for_sync.append(file_path)  # Use the (potentially converted) file path here
                     print(f"Adding file: {file_path}, Size: {file_size} bytes")
                 else:
                     print(f"Skipping zero-byte file: {file_path}")
@@ -167,7 +175,7 @@ def get_user_confirmation(prompt: str, default: str, valid_options: dict) -> boo
 def main():
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     source_folder = os.path.join(repo_dir, "photos")
-    target_folder = "/storage/self/primary/syncPhotos"
+    target_folder = "/storage/self/primary/Cinematography/syncPhotos"
 
     convert_heic = get_user_confirmation(
         prompt="Convert HEIC to JPG?",

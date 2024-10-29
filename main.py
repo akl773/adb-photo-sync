@@ -175,6 +175,10 @@ if __name__ == "__main__":
         convert_heic=convert_heic
     )
 
+    if num_files == 0:
+        print("No new files to sync.")
+        exit(1)
+
     print(f"Total photos/files to transfer: {num_files}")
     print(f"Total size: {total_size_bytes / (1024 * 1024):.2f} MB\n")
 

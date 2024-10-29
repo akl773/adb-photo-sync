@@ -5,10 +5,18 @@ from typing import Optional
 from tqdm import tqdm
 import time
 from PIL import Image
+import imageio
 import pyheif
 
 LAST_SYNC_FILE = "last_sync_time.txt"
 
+def delete_files_in_folder(folder_path: str) -> None:
+    """Delete all files in the specified folder, keeping the folder structure intact."""
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            os.remove(file_path)
+            print(f"Deleted file: {file_path}")
 
 def confirm_heic_conversion() -> bool:
     """Ask user for confirmation to convert HEIC to JPG with default as convert."""
@@ -17,16 +25,28 @@ def confirm_heic_conversion() -> bool:
 
 
 def convert_heic_to_jpg(file_path: str) -> str:
-    """Convert a HEIC image to JPG and return the new file path."""
-    heif_file = pyheif.read(file_path)
-    image = Image.frombytes(
-        heif_file.mode,
-        heif_file.size,
-        heif_file.data,
-        "raw",
-        heif_file.mode,
-        heif_file.stride
-    )
+    """Convert a HEIC image to JPG. Attempt pyheif first, fallback to imageio, or skip if both fail."""
+    try:
+        # Attempt conversion with pyheif
+        heif_file = pyheif.read(file_path)
+        image = Image.frombytes(
+            heif_file.mode,
+            heif_file.size,
+            heif_file.data,
+            "raw",
+            heif_file.mode,
+            heif_file.stride
+        )
+    except Exception:
+        print(f"pyheif failed to read {file_path}, trying imageio as a fallback.")
+        try:
+            # Attempt conversion with imageio
+            image = Image.fromarray(imageio.imread(file_path))
+        except Exception:
+            print(f"imageio also failed to read {file_path}. Skipping conversion.")
+            return file_path  # Return original HEIC path if both methods fail
+
+    # Save the converted image as JPG
     jpg_path = file_path.replace(".heic", ".jpg")
     image.save(jpg_path, "JPEG")
     return jpg_path
@@ -110,7 +130,7 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
         delete_confirm = input(
             "Files will be deleted from your Mac unless you type 'n'. Proceed? (default: yes): ").strip().lower()
         if delete_confirm != 'n':
-            shutil.rmtree(source_dir)
+            delete_files_in_folder(source_folder)
             print(f"Deleted all files from {source_dir}.")
         else:
             print("Files were not deleted.")
@@ -130,7 +150,7 @@ def get_sync_mode():
 if __name__ == "__main__":
     # Define source and target folders
     repo_dir = os.path.dirname(os.path.abspath(__file__))
-    source_folder = os.path.join(repo_dir, "photos") # source folder
+    source_folder = os.path.join(repo_dir, "photos")  # source folder
     target_folder = "/storage/self/primary/syncPhotos"  # target folder
 
     # Get HEIC conversion preference

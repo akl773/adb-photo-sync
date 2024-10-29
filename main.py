@@ -89,24 +89,31 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
         print("Some files failed to push. Please check and try again.")
 
 
+def get_sync_mode():
+    while True:
+        sync_mode = input("Choose sync mode: (1) Sync All or (2) Sync Only New Files: ").strip()
+        if sync_mode not in ['1', '2']:
+            print("Invalid choice. Please enter '1' or '2'.")
+        else:
+            return sync_mode
+
+
 if __name__ == "__main__":
     # Define source and target folders
-    mac_photos_folder = os.path.expanduser("~/Sync/Photos")  # Updated macOS Photos folder path
-    android_download_folder = "/storage/self/primary/Download"  # Target folder on Android
-
-    # Ask user to choose sync mode
-    sync_mode = input("Choose sync mode: (1) Sync All or (2) Sync Only New Files: ").strip()
-    last_sync_timestamp = None if sync_mode == '1' else get_last_sync_timestamp()
+    source_folder = os.path.expanduser("~/photos")  # source folder
+    target_folder = "/storage/self/primary/Download"  # target folder
 
     # Calculate metadata and list of files to sync
-    file_count, total_size, files_to_sync = calculate_metadata(mac_photos_folder, last_sync_timestamp)
+    num_files, total_size_bytes, files_to_sync = calculate_metadata(
+        sync_source_folder=source_folder,
+        last_sync_timestamp=None if get_sync_mode() == '1' else get_last_sync_timestamp())
 
-    print(f"Total photos/files to transfer: {file_count}")
-    print(f"Total size: {total_size / (1024 * 1024):.2f} MB\n")
+    print(f"Total photos/files to transfer: {num_files}")
+    print(f"Total size: {total_size_bytes / (1024 * 1024):.2f} MB\n")
 
     # Confirm before starting the transfer
-    start_confirm = input("Start the transfer? (y/n): ").strip().lower()
+    start_confirm = input("Start the transfer? (y/N): ").strip().lower()
     if start_confirm != 'y':
         print("Transfer cancelled.")
     else:
-        adb_push_files(mac_photos_folder, android_download_folder, files_to_sync)
+        adb_push_files(source_folder, target_folder, files_to_sync)

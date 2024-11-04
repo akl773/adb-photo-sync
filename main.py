@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import subprocess
 import time
@@ -12,12 +13,20 @@ LAST_SYNC_FILE = "last_sync_time.txt"
 
 
 def delete_files_in_folder(folder_path: str) -> None:
-    """Delete all files in the specified folder, keeping the folder structure intact."""
+    """ Delete all files in the specified folder, keeping the folder structure intact."""
     for root, _, files in os.walk(folder_path):
         for file in files:
             file_path = os.path.join(root, file)
             os.remove(file_path)
             print(f"Deleted file: {file_path}")
+
+
+def is_video_file(file_name: str) -> bool:
+    """ Check if a file is a video based on its MIME type."""
+    mime_type, _ = mimetypes.guess_type(file_name)
+    if mime_type is not None:
+        return mime_type.startswith('video')
+    return False
 
 
 def convert_heic_to_jpg(file_path: str) -> Optional[str]:
@@ -66,10 +75,16 @@ def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[fl
         for file in files:
             file_path = os.path.join(root, file)
 
-            # Convert HEIC to JPG if the user confirmed
+            # Handle HEIC to JPG conversion
             if convert_heic and file.lower().endswith(".heic"):
                 print(f"Converting {file} to JPG...")
                 file_path = convert_heic_to_jpg(file_path)  # Replace file_path with the path of the converted file
+                if file_path is None:
+                    continue  # Skip if the conversion failed
+
+            # Check if it's a video file (no conversion needed)
+            elif is_video_file(file):
+                print(f"Video file detected: {file_path}")
 
             # Check if the file was modified after the last sync time
             if last_sync_timestamp is None or os.path.getmtime(file_path) > last_sync_timestamp:
@@ -79,7 +94,7 @@ def calculate_metadata(sync_source_folder: str, last_sync_timestamp: Optional[fl
                 if file_size > 0:
                     total_size += file_size
                     file_count += 1
-                    files_for_sync.append(file_path)  # Use the (potentially converted) file path here
+                    files_for_sync.append(file_path)  # Use the file path here
                     print(f"Adding file: {file_path}, Size: {file_size} bytes")
                 else:
                     print(f"Skipping zero-byte file: {file_path}")
@@ -100,13 +115,62 @@ def update_last_sync_timestamp() -> None:
         sync_file.write(str(time.time()))
 
 
-def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[str]) -> None:
-    # Check if adb is accessible
+def get_connected_devices() -> list[str]:
+    """
+    Get a list of devices connected via ADB.
+
+    Returns:
+        list[str]: A list of device IDs connected via ADB.
+    """
     try:
-        subprocess.run(["adb", "devices"], check=True, capture_output=True)
+        result = subprocess.run(["adb", "devices"], capture_output=True, text=True)
+        lines = result.stdout.strip().split("\n")
+        devices = [line.split()[0] for line in lines[1:] if "device" in line]  # Ignore the first line (header)
+        return devices
     except subprocess.CalledProcessError:
-        print("ADB is not installed or not accessible in PATH.")
+        print("Failed to run 'adb devices'. Make sure ADB is installed and accessible.")
+        return []
+
+
+def select_device(devices: list[str]) -> str:
+    """
+    Prompt the user to select a device if multiple devices are connected.
+
+    Args:
+        devices (list[str]): List of device IDs.
+
+    Returns:
+        str: The selected device ID.
+    """
+    if len(devices) == 1:
+        return devices[0]  # Only one device, no need to prompt
+    else:
+        print("Multiple devices detected. Please select one:")
+        for i, device in enumerate(devices, 1):
+            print(f"{i}. {device}")
+
+        while True:
+            try:
+                choice = int(input(f"Select device [1-{len(devices)}]: "))
+                if 1 <= choice <= len(devices):
+                    return devices[choice - 1]
+                else:
+                    print(f"Invalid choice. Please select a number between 1 and {len(devices)}.")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
+
+def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[str]) -> None:
+    # Get connected devices
+    devices = get_connected_devices()
+
+    if not devices:
+        print("No devices connected. Please connect a device and try again.")
         return
+
+    # Select a device if multiple are connected
+    selected_device = select_device(devices)
+    print(f"Using device: {selected_device}")
 
     # Track whether all files were pushed successfully
     all_files_pushed = True
@@ -120,10 +184,11 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
 
             # Ensure the target directory exists on Android
             remote_dir = os.path.dirname(android_target_path)
-            subprocess.run(["adb", "shell", "mkdir", "-p", remote_dir])
+            subprocess.run(["adb", "-s", selected_device, "shell", "mkdir", "-p", remote_dir])
 
-            # Push the file
-            result = subprocess.run(["adb", "push", local_file_path, android_target_path], capture_output=True)
+            # Push the file to the selected device
+            result = subprocess.run(["adb", "-s", selected_device, "push", local_file_path, android_target_path],
+                                    capture_output=True)
 
             # Update progress bar
             progress_bar.update(1)
@@ -140,7 +205,7 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
 
         # Prompt for deletion if sync was successful
         delete_confirm = input(
-            "Files will be deleted from your Mac unless you type 'n'. Proceed? (default: yes): ").strip().lower()
+            "Files will be deleted unless you type 'n'. Proceed? (default: yes): ").strip().lower()
         if delete_confirm != 'n':
             delete_files_in_folder(source_dir)
             print(f"Deleted all files from {source_dir}.")

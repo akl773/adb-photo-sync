@@ -194,7 +194,19 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
             progress_bar.update(1)
 
             # Check if the push was successful
-            if result.returncode != 0:
+            if result.returncode == 0:
+                # Broadcast the reindex event so the file appears in the gallery
+                broadcast_result = subprocess.run(
+                    ["adb", "-s", selected_device, "shell", "am", "broadcast", "-a",
+                     "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+                     "-d", f"file://{android_target_path}"],
+                    capture_output=True
+                )
+                if broadcast_result.returncode == 0:
+                    print(f"Reindex broadcast sent for {android_target_path}")
+                else:
+                    print(f"Failed to send reindex broadcast for {android_target_path}")
+            else:
                 print(f"\nFailed to push {local_file_path}.")
                 all_files_pushed = False
 
@@ -205,7 +217,7 @@ def adb_push_files(source_dir: str, target_dir: str, files_for_transfer: list[st
 
         # Prompt for deletion if sync was successful
         delete_confirm = input(
-            "Files will be deleted unless you type 'n'. Proceed? (default: yes): ").strip().lower()
+            "Files will be deleted from your Mac unless you type 'n'. Proceed? (default: yes): ").strip().lower()
         if delete_confirm != 'n':
             delete_files_in_folder(source_dir)
             print(f"Deleted all files from {source_dir}.")

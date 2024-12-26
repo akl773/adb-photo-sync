@@ -1,4 +1,4 @@
-from sync_manager import PhotoSyncManager
+from src.core.sync_manager import PhotoSyncManager
 
 
 def main():

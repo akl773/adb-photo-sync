@@ -9,8 +9,8 @@ from typing import List, Optional, Dict, Tuple
 
 from tqdm import tqdm
 
-from config import SyncConfig
-from utils import get_user_confirmation, get_typed_input
+from src.config.config import SyncConfig
+from src.utils.utils import get_typed_input
 
 logger = logging.getLogger(__name__)
 

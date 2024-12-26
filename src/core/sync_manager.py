@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from adb_manager import ADBDeviceManager
-from config import SyncConfig
-from filesync_manager import FileSyncManager
-from utils import get_user_confirmation
+from src.config.config import SyncConfig
+from src.core.adb_manager import ADBDeviceManager
+from src.core.media_processor import MediaFileProcessor
+from src.utils.utils import get_user_confirmation
 
 # Configure logging
 logging.basicConfig(
@@ -111,7 +111,7 @@ class PhotoSyncManager:
                 sync_all=settings.sync_all
             )
 
-            file_manager = FileSyncManager(
+            file_manager = MediaFileProcessor(
                 str(settings.source_dir),
                 str(settings.target_dir),
                 config

@@ -74,3 +74,4 @@ photos
 .DS_Store
 last_sync_time.txt
 syncphotos.sh
+*.log

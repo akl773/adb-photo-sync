@@ -1,5 +1,4 @@
 import logging
-import os
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
@@ -9,7 +8,7 @@ import imageio.v2 as imageio
 import pyheif
 from PIL import Image
 
-from config import SyncConfig
+from src.config.config import SyncConfig
 
 logger = logging.getLogger(__name__)
 

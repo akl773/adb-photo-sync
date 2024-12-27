@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional
 
 from tqdm import tqdm
 
@@ -70,6 +70,7 @@ class ADBDeviceManager:
         """Initialize the ADB Device Manager."""
         self.selected_device: Optional[DeviceInfo] = None
         self._verify_adb_installation()
+        self.sync_config = SyncConfig()
 
     def _verify_adb_installation(self) -> None:
         """
@@ -232,7 +233,7 @@ class ADBDeviceManager:
             # Send reindex broadcasts in batches
             if transferred_files:
                 self._batch_reindex_broadcasts(transferred_files)
-                SyncConfig.update_last_sync_timestamp()
+                self.sync_config.update_last_sync_timestamp()
                 logger.info(f"Successfully transferred {len(transferred_files)} files")
                 return True
 

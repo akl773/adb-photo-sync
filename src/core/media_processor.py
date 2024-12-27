@@ -144,7 +144,8 @@ class MediaFileProcessor:
         except FileConversionError:
             return None
 
-    def _get_file_metadata(self, file_path: Path) -> Optional[FileMetadata]:
+    @staticmethod
+    def _get_file_metadata(file_path: Path) -> Optional[FileMetadata]:
         """Get file metadata including size and modification time."""
         try:
             return FileMetadata(
@@ -185,8 +186,7 @@ class MediaFileProcessor:
         if metadata.size == 0:
             raise FileSizeError(f"Zero-byte file: {metadata.path}")
 
-        # Add additional size validations as needed
-        max_size = 1024 * 1024 * 1024  # 1GB
+        max_size = 10 * 1024 * 1024 * 1024  # 10GB
         if metadata.size > max_size:
             raise FileSizeError(f"File exceeds maximum size: {metadata.path}")
 

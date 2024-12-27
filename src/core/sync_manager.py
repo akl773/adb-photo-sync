@@ -6,9 +6,11 @@ from typing import Dict, List, Optional, Tuple
 from src.config.config import SyncConfig
 from src.core.adb_manager import ADBDeviceManager
 from src.core.media_processor import MediaFileProcessor
+from src.utils.path_utils import get_photos_dir
 from src.utils.utils import get_user_confirmation
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SyncSettings:
@@ -17,6 +19,7 @@ class SyncSettings:
     sync_all: bool
     source_dir: Path
     target_dir: Path
+
 
 class PhotoSyncManager:
     """Main class responsible for managing the photo synchronization process."""
@@ -27,15 +30,9 @@ class PhotoSyncManager:
     }
 
     def __init__(self) -> None:
-        # Get the project root directory (2 levels up from this file)
-        self.project_root = Path(__file__).resolve().parent.parent.parent
-
-        # Define paths relative to project root
-        self.source_folder = self.project_root / "data" / "photos"
+        # Use path utilities to get source folder
+        self.source_folder = get_photos_dir()
         self.target_folder = Path("/storage/self/primary/Cinematography/syncPhotos")
-
-        # Ensure the photos directory exists
-        self.source_folder.mkdir(parents=True, exist_ok=True)
         logger.info(f"Using source folder: {self.source_folder}")
 
     def get_sync_settings(self) -> Optional[SyncSettings]:
